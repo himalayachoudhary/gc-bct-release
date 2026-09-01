@@ -1,14 +1,10 @@
 """
 Graph-valid chronological histories underlying the higher-order network
-construction (dissertation Section 3.4.1, shift operator sh(u,w), Eq 3.52).
+construction.
 
 Orientation note: contexts elsewhere in the codebase are most-recent-first
 (ctx[0] = current node). Histories here are the opposite: chronological,
-history[0] oldest, history[-1] current (tau(u) = history[-1]). The two
-conventions meet in exactly one place, `selected_context` below, which
-converts a chronological History into a most-recent-first Context for
-keying into theta. Everywhere else in this module and in hon.py, histories
-stay chronological.
+history[0] oldest, history[-1] current (tau(u) = history[-1]).
 """
 from __future__ import annotations
 
@@ -38,12 +34,7 @@ def enumerate_valid_histories(
     nodes: Iterable[Node],
     D: int,
 ) -> Set[History]:
-    """
-    S_D(G), built by forward extension (Algorithm 1, Appendix C.1.1):
-    start from every physical node and extend one step at a time through
-    valid out-edges. No max-reach filtering needed -- a chain that can't
-    reach length D just produces no depth-D descendants and drops out.
-    """
+    
     if D < 1:
         raise ValueError(f"D must be >= 1, got {D}")
     level: Set[History] = {(v,) for v in nodes}
@@ -57,12 +48,7 @@ def enumerate_reachable_histories(
     D: int,
     initial_histories: Iterable[History],
 ) -> Set[History]:
-    """
-    Reach(I): forward-shift closure of a seed set I subseteq S_D(G) --
-    every history reachable from I, without building the full S_D(G).
-    `initial_histories` must already be graph-valid; shifting only
-    extends forward, so it can't repair an invalid seed.
-    """
+    
     frontier = set(initial_histories)
     reached = set(frontier)
     while frontier:
@@ -74,15 +60,7 @@ def enumerate_reachable_histories(
 
 
 def selected_context(history: History, selected_forest: Iterable[Context]) -> Context:
-    """
-    C_T(u): the selected suffix of a chronological history, returned as
-    a most-recent-first Context -- the one orientation conversion point
-    in this module (see module docstring).
-
-    Longest-to-shortest suffix search, O(D) per call. Pass a pre-built
-    set/frozenset for `selected_forest` if doing many lookups, to avoid
-    re-converting it each call.
-    """
+    
     forest = selected_forest if isinstance(selected_forest, (set, frozenset)) else set(selected_forest)
     for length in range(len(history), 0, -1):
         ctx = history[-length:][::-1]
