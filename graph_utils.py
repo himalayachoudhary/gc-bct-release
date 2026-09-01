@@ -1,17 +1,9 @@
 """
-Graph primitives for the potential context forest.
-
 Builds N+(v)/N-(v) adjacency, the predictive alphabet A_s = N+(cur(s))
 (Eq 3.4), and graph-valid children Ch_G(s) (Eq 3.7-3.8). Section 3.1.2.
 
 A child sq is only kept if its oldest node q can still extend backward
-D-(k+1) more steps; otherwise it's a dead end and should drop out of the
-recursion instead of contributing some arbitrary leftover value. See
-test_gc_bct.py::test_max_reach_filter_matters.
-
-compute_max_backward_reach finds, for every node, the longest backward
-walk length (capped at D) via monotone forward iteration, O(D*|E|);
-handles cycles fine. children_of uses it to filter candidates.
+D-(k+1) more steps; otherwise it's a dead end.
 """
 from __future__ import annotations
 
