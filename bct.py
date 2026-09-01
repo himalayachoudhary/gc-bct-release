@@ -1,10 +1,6 @@
 """
 GC-BCT: the graph-constrained Bayesian context-tree algorithm.
 
-Implements Section 3.2.2 (Eq 3.33-3.35). Computes the MAP context forest
-and its maximal joint probability via the backward maximal-probability
-recursion.
-
 Zero-count subtrees (Appendix B): fast path (beta constant >= 1/2) sets
 Q_{m,s} = beta_s in O(1) per node; exact only in that regime. Otherwise
 falls back to the general recursion, walking the unobserved subtree down
@@ -45,7 +41,7 @@ class GCBCTResult:
 
 
 def _log_Qm(ctx, out_nbrs, in_nbrs, max_reach, D, b_fn, cache):
-    """Exact Q_{m,s} for an entirely-unobserved subtree (Eq 3.33-3.35, general recursion)."""
+    """Exact Q_{m,s} for an entirely-unobserved subtree"""
     if ctx in cache:
         return cache[ctx]
     if len(ctx) == D:
