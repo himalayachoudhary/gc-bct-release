@@ -4,22 +4,10 @@ model, built on top of already-fitted GC-CTW (ctw.py) and GC-BCT
 (bct.py) results. Implements dissertation Section 3.3 ("Posterior
 inference, sampling, and prediction").
 
-File's internal 19.x labels -> dissertation subsections:
-  19.1  admissible-forest / MAP posterior probability    -> 3.3.1 (Eq 3.37-3.38)          log_forest_posterior, GCPosteriorResult.log_map_posterior
-  19.2  posterior transition parameters given a forest   -> 3.3.1 (Eq 3.39)               transition_posterior
-  19.3  local stop/expand posterior gamma_s, xi_s        -> 3.3.2 (Eq 3.40-3.41)          local_posterior, zero_count_local_posterior
-  19.4  reach r_s, selection q_s, memory-order posterior -> 3.3.2 (Eq 3.42-3.43, 3.45)    reach_and_selection_probabilities, local_memory_distribution
-  19.5  exact posterior structural sampling              -> 3.3.2 (Thm 3.3.1, Eq 3.47-48) sample_forest, sample_joint
-  19.6  posterior predictive distribution                -> 3.3.3 (Eq 3.49-3.51)          predictive_mixture, predictive_evidence_ratio
-
 gamma_s is the probability of STOPPING at a reached node s (Eq 3.40);
 1 - gamma_s is the probability of expanding (Eq 3.41).
-
-Zero-count nodes are handled with a closed form (posterior = prior)
-instead of recursion. bct.py's MAP recursion can't take this shortcut,
-since distinct zero-count structures carry distinct prior mass under a
-max, but not under a posterior sum.
 """
+
 import math
 import sys
 from collections import defaultdict
@@ -33,17 +21,12 @@ from evidence import log_Pe
 from graph_utils import alphabet, children_of
 
 
-# ======================================================================
-# 0. Bundled result object and main entry point
-# ======================================================================
+
+# Bundled result object and main entry point
+
 
 class GCPosteriorResult:
-    """
-    Posterior-inference quantities for one fitted (GCCTWResult,
-    GCBCTResult) pair, computed once over the represented forest.
-    Build via run_gc_posterior(); pass this object to the other
-    functions in this module rather than recomputing gamma/xi/r/q.
-    """
+    
 
     def __init__(self, ctw_result, bct_result, beta, eta, gamma, xi, r, q, log_map_posterior):
         self.ctw_result = ctw_result
@@ -63,18 +46,7 @@ class GCPosteriorResult:
 
 
 def run_gc_posterior(ctw_result, bct_result, beta: BetaSpec, eta: Optional[float] = None) -> GCPosteriorResult:
-    """
-    Computes, once, over the represented forest: the MAP posterior
-    probability (Eq 3.37-3.38), the local posteriors gamma_s/xi_s
-    (Section 3.3.2), and the reach/selection probabilities r_s/q_s
-    (Section 3.3.2).
-
-    `beta`/`eta` must be exactly what produced `ctw_result` and
-    `bct_result`; checked where cheap to check (eta always, constant
-    beta against ctw_result.beta -- callables are trusted as given).
-    ctw_result/bct_result are also checked for matching materialised
-    context sets, i.e. having been fit to the same data.
-    """
+    
     if eta is None:
         eta = ctw_result.eta
     elif eta != ctw_result.eta:
@@ -100,9 +72,9 @@ def run_gc_posterior(ctw_result, bct_result, beta: BetaSpec, eta: Optional[float
     return GCPosteriorResult(ctw_result, bct_result, beta, eta, gamma, xi, r, q, log_map)
 
 
-# ======================================================================
-# 1. MAP posterior probability -- Section 3.3.1, Eq 3.37-3.38
-# ======================================================================
+
+# 1. MAP posterior probability
+
 # The scalar itself is just bct_result.log_pm_lambda minus
 # ctw_result.log_pw_lambda (see run_gc_posterior above / the
 # .log_map_posterior / .map_posterior_probability attributes).
@@ -111,19 +83,7 @@ def run_gc_posterior(ctw_result, bct_result, beta: BetaSpec, eta: Optional[float
 # that the MAP log-posterior matches the GC-BCT MAP theorem (Thm 3.2.2).
 
 def log_forest_posterior(leaves: Sequence[Context], post: GCPosteriorResult) -> float:
-    """
-    log pi_D(T | D_D; beta) for an ARBITRARY admissible forest T, given
-    by its leaf set `leaves` (Eq 3.37-3.38):
-
-        log pi_{G,D}(T;beta) + sum_{s in T} ell_e,s  -  ell_w,lambda
-
-    `leaves` need not be the MAP forest, and its elements need not be
-    materialised (an unmaterialised leaf just contributes evidence 1,
-    i.e. log P_e^G(0) = 0). No check that `leaves` is actually a valid
-    graph-constrained forest (Section 3.1.2) is performed -- construct
-    it from a G-proper source, e.g. bct_result.map_leaves or the
-    enumerator in the test suite.
-    """
+   
     ctw_result = post.ctw_result
     D = ctw_result.D
     b_fn = beta_fn(post.beta)
@@ -154,27 +114,19 @@ def log_forest_posterior(leaves: Sequence[Context], post: GCPosteriorResult) -> 
     return log_prior + log_lik - ctw_result.log_pw_lambda
 
 
-# ======================================================================
-# 2. Local posterior probabilities gamma_s, xi_s -- Section 3.3.2
-# ======================================================================
+
+# 2. Local posterior probabilities gamma_s, xi_s 
+
+
 
 def zero_count_local_posterior(ctx: Context, beta: BetaSpec) -> Tuple[float, float]:
-    """
-    (gamma_s, xi_s) for an UNMATERIALISED (all-zero-count) context s:
-    the posterior equals the prior, gamma_s = beta_s, xi_s = 1-beta_s,
-    since an unobserved node's evidence is 1. No recursion needed.
-    """
+    
     b = beta_fn(beta)(ctx)
     return b, 1.0 - b
 
 
 def local_posterior(ctw_result, beta: BetaSpec) -> Tuple[Dict[Context, float], Dict[Context, float]]:
-    """
-    gamma_s (stop), xi_s (expand) for every MATERIALISED context, Eq
-    3.40-3.41. At depth D, stopping is forced: (gamma_s, xi_s) = (1, 0).
-    The two exponentiated values are renormalised to sum to exactly 1,
-    to remove floating-point drift.
-    """
+    
     b_fn = beta_fn(beta)
     D = ctw_result.D
     counts, log_pe, log_pw = ctw_result.counts, ctw_result.log_pe, ctw_result.log_pw
@@ -197,19 +149,12 @@ def local_posterior(ctw_result, beta: BetaSpec) -> Tuple[Dict[Context, float], D
     return gamma, xi
 
 
-# ======================================================================
-# 3. Reach r_s, selection q_s, local-memory distribution -- Section 3.3.2
-# ======================================================================
+
+# 3. Reach r_s, selection q_s, local-memory distribution 
+
 
 def reach_and_selection_probabilities(ctw_result, beta: BetaSpec, gamma=None, xi=None):
-    """
-    r_s (Eq 3.42) and q_s (Eq 3.43) for every MATERIALISED context, in
-    one top-down pass over the represented forest in INCREASING depth
-    order (the opposite direction from the CTW/BCT backward passes).
-    Well-defined because a materialised node's parent is always
-    materialised too, so r_s is already set by the time a node is
-    visited.
-    """
+    
     if gamma is None or xi is None:
         gamma, xi = local_posterior(ctw_result, beta)
     D = ctw_result.D
@@ -233,15 +178,7 @@ def reach_and_selection_probabilities(ctw_result, beta: BetaSpec, gamma=None, xi
 
 
 def active_roots(ctw_result) -> List[Context]:
-    """
-    Every active physical-node root -- positive out-degree, extendable
-    backward to depth D -- not just the materialised subset
-    ctw_result.roots. Needed for a COMPLETE structural sample
-    (sample_forest below, over the whole graph, not just the branches
-    touching data); not needed for ell_w,lambda / ell_m,lambda, since a
-    wholly-unobserved root contributes 1 to that product and
-    GC-CTW/GC-BCT already skip it (Section 3.2.3).
-    """
+    
     D = ctw_result.D
     return [
         (v,) for v in ctw_result.out_nbrs
@@ -250,17 +187,7 @@ def active_roots(ctw_result) -> List[Context]:
 
 
 def local_memory_distribution(u: Sequence[Node], post: GCPosteriorResult) -> List[float]:
-    """
-    Posterior distribution of the local memory depth ell_T(u) for one
-    full graph-valid history u = (u_1, ..., u_D) -- the memory-order
-    posterior, Eq 3.45. Returns `probs` with probs[k-1] = q_{u_1:k} =
-    Pr(C_T(u) has length k | D_D). Sums to 1 over k=1..D.
-
-    Walks the single branch top-down in O(D), using the zero-count
-    closed form for any unmaterialised prefix, so this works for ANY
-    graph-valid u, observed or not, without needing q_s to already be
-    in post.q for that branch.
-    """
+    
     ctw_result = post.ctw_result
     D = ctw_result.D
     u = tuple(u)
@@ -282,21 +209,12 @@ def local_memory_distribution(u: Sequence[Node], post: GCPosteriorResult) -> Lis
     return probs
 
 
-# ======================================================================
-# 4. Exact posterior forest sampler -- Section 3.3.2, Theorem 3.3.1
-# ======================================================================
+
+# 4. Exact posterior forest sampler
+
 
 def sample_forest(post: GCPosteriorResult, rng: Optional[np.random.Generator] = None) -> List[Context]:
-    """
-    One exact draw T ~ pi_D(. | D_D), via the recursive stop/expand
-    sampler (Theorem 3.3.1, proof in Appendix A.2). Materialised nodes
-    use the precomputed gamma_s; a zero-count node reached along the
-    way is handled on demand with beta_s directly, so an
-    entirely-unobserved branch costs only what it takes to walk it once.
-
-    Iterates over active_roots(), not just ctw_result.roots, so the
-    returned T is a genuine complete draw over the whole graph.
-    """
+    
     if rng is None:
         rng = np.random.default_rng()
     ctw_result = post.ctw_result
@@ -328,12 +246,7 @@ def sample_forest(post: GCPosteriorResult, rng: Optional[np.random.Generator] = 
 
 
 def sample_joint(post: GCPosteriorResult, rng: Optional[np.random.Generator] = None):
-    """
-    One exact draw (T, theta_T) ~ pi_D(dT, dtheta_T | D_D), Eq 3.47-3.48:
-    sample T via sample_forest, then independently draw
-    theta_s ~ Dir(a_s(j)+eta)_{j in A_s} for every s in T. Returns
-    (T, theta) with theta a dict context -> dict(next_node -> probability).
-    """
+    
     if rng is None:
         rng = np.random.default_rng()
     T = sample_forest(post, rng)
@@ -345,23 +258,13 @@ def sample_joint(post: GCPosteriorResult, rng: Optional[np.random.Generator] = N
     return T, theta
 
 
-# ======================================================================
-# 5. Transition-parameter posterior -- Section 3.3.1, Eq 3.39
-# ======================================================================
+
+# 5. Transition-parameter posterior 
+
 
 def transition_posterior(ctx: Context, post: GCPosteriorResult, n_samples: int = 0,
                           rng: Optional[np.random.Generator] = None) -> dict:
-    """
-    Posterior Dirichlet(n_s(w)+eta) parameters, mean, variance/covariance,
-    and (optionally) exact samples of theta_s at one context s=ctx (Eq
-    3.39). Works whether or not ctx is materialised: an unmaterialised
-    context just returns the prior back, alpha_{s,j}=eta for every j.
-
-    Returns a dict with keys 'alphabet' (canonical order used
-    throughout), 'alpha', 'alpha0', 'mean', 'variance' (each keyed by
-    node), 'covariance' (an array in `alphabet` order), and, if
-    n_samples>0, 'samples' (shape (n_samples, len(alphabet))).
-    """
+    
     ctw_result = post.ctw_result
     out_nbrs = ctw_result.out_nbrs
     A_s = sorted(alphabet(ctx[0], out_nbrs), key=repr)  # canonical order, robust to non-orderable nodes
@@ -391,18 +294,11 @@ def transition_posterior(ctx: Context, post: GCPosteriorResult, n_samples: int =
     return out
 
 
-# ======================================================================
-# 6. Posterior predictive distribution -- Section 3.3.3
-# ======================================================================
+# 6. Posterior predictive distribution 
+
 
 def predictive_mixture(u: Sequence[Node], post: GCPosteriorResult) -> Dict[Node, float]:
-    """
-    p(j | u, D_D), structure-averaged prediction over the branch (Eq
-    3.49-3.50): mixes the per-context posterior mean mu_s(j) over the
-    memory-order posterior q_s along u's branch. Returns a dict over j
-    in A(u) only (summing to 1); a graph-invalid j is simply absent,
-    i.e. implicitly probability zero.
-    """
+    
     ctw_result = post.ctw_result
     D = ctw_result.D
     u = tuple(u)
@@ -422,13 +318,7 @@ def predictive_mixture(u: Sequence[Node], post: GCPosteriorResult) -> Dict[Node,
 
 
 def predictive_evidence_ratio(u: Sequence[Node], j: Node, post: GCPosteriorResult) -> float:
-    """
-    p(j | u, D_D), evidence-ratio form (Eq 3.51): adds one observation
-    (u -> j) and recomputes only the evidence/weighted-probability at
-    the D prefixes of u, reusing every stored off-path sibling value
-    untouched. Returns 0.0 for a graph-invalid j not in A(u), without
-    computing anything.
-    """
+    
     ctw_result = post.ctw_result
     D = ctw_result.D
     u = tuple(u)
