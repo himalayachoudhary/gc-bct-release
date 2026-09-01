@@ -19,13 +19,7 @@ from posterior import GCPosteriorResult, sample_joint, transition_posterior
 
 
 def build_map_hon(post: GCPosteriorResult, D: Optional[int] = None) -> RefinedHON:
-    """
-    Conditional posterior-mean HON based on the MAP forest T_hat_MAP:
-    apply Phi_{G,D} to (T_hat_MAP, Theta_hat), with Theta_hat_c the
-    posterior mean of theta_c for each c in T_hat_MAP. A useful graph
-    summary, not necessarily the mode of the induced graph-valued
-    posterior.
-    """
+    
     D = D if D is not None else post.ctw_result.D
     selected_forest = post.bct_result.map_leaves
     theta = {c: transition_posterior(c, post)["mean"] for c in selected_forest}
@@ -62,12 +56,7 @@ def sample_posterior_hons(
     rng: Optional[np.random.Generator] = None,
     D: Optional[int] = None,
 ) -> List[RefinedHON]:
-    """
-    n independent posterior BCT-HON draws H^(1), ..., H^(n) (Section
-    3.4.4). Each draw resamples both T^(m) and Theta^(m) independently
-    and reruns the full construction -- no reuse across draws even when
-    two happen to share the same sampled forest.
-    """
+    
     if rng is None:
         rng = np.random.default_rng()
     D = D if D is not None else post.ctw_result.D
