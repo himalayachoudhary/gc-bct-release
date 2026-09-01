@@ -5,10 +5,6 @@ Zero-count subtrees (Appendix B): fast path (beta constant >= 1/2) sets
 Q_{m,s} = beta_s in O(1) per node; exact only in that regime. Otherwise
 falls back to the general recursion, walking the unobserved subtree down
 to depth D, which is exact everywhere but can be slow for large D.
-
-ChG(s) must be filtered by max_reach (graph_utils.children_of): a node
-with no graph-valid extendable child below depth D is a forced leaf
-(Q_m = 1), not an empty-product 'expand' alternative.
 """
 import math
 import sys
@@ -73,18 +69,7 @@ def run_gc_bct(
     exact_zero_count: bool = False,
     counts: Dict[Context, Dict[Node, int]] = None,
 ) -> GCBCTResult:
-    """
-    Parameters are as in ctw.run_gc_ctw, plus:
-
-    exact_zero_count : force the general zero-count recursion (Eq
-        3.33-3.35) even when beta >= 1/2 would allow the O(1) fast
-        path. Useful for cross-checking the two code paths.
-
-    counts : optional pre-computed count dict, bypassing
-        forest.build_counts_from_paths. Lets a caller swap in an
-        alternative counting/boundary convention without touching the
-        MAP-fitting logic. None (default) preserves normal behaviour.
-    """
+    
     out_nbrs, in_nbrs, nodes = build_adjacency(edges)
     max_reach = compute_max_backward_reach(in_nbrs, nodes, D)
     if counts is None:
