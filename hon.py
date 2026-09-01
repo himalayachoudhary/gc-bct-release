@@ -28,9 +28,9 @@ from history import History, enumerate_valid_histories, selected_context, shift_
 Theta = Dict[Context, Dict[Node, float]]  # theta_c(w), c in T, w in N+(tau(c))
 
 
-# ======================================================================
+
 # Algorithm 1 (Appendix C.1.1, Section 3.4.1): exact history-state HON
-# ======================================================================
+
 
 @dataclass
 class ExactHON:
@@ -126,10 +126,9 @@ def build_exact_hon(
     )
 
 
-# ======================================================================
-# Algorithm 2, first half (Appendix C.1.2, Section 3.4.2): routing-
-# consistent partition refinement
-# ======================================================================
+
+# Algorithm 2, first half (Appendix C.1.2, Section 3.4.2): routing-consistent partition refinement
+
 
 @dataclass
 class RoutingPartition:
@@ -197,10 +196,9 @@ def refine_routing_partition(exact_hon: ExactHON) -> RoutingPartition:
     return RoutingPartition(blocks=blocks, block_of_history=block_of_history, iterations=iterations)
 
 
-# ======================================================================
-# Algorithm 2, second half (Appendix C.1.2, Section 3.4.3): BCT-HON
-# construction
-# ======================================================================
+
+# Algorithm 2, second half (Appendix C.1.2, Section 3.4.3): BCT-HON construction
+
 
 class HONState(NamedTuple):
     """One row of the HON states output table."""
