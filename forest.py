@@ -7,7 +7,7 @@ positions are i = D, ..., L. Counts are inserted at every prefix length
 1..D of each observed length-D context, so a parent's count vector is
 automatically the sum of its children's.
 
-A context missing from the returned dict has zero count -- handled
+A context missing from the returned dict has zero count - handled
 analytically elsewhere (Section 3.2.3 / Appendix B) rather than stored.
 """
 from collections import defaultdict
