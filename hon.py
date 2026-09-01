@@ -16,10 +16,6 @@ given (T, Theta) with no dependency on ctw.py/bct.py/posterior.py:
 
 hon_bayes.py supplies T and Theta from posterior output (Section 3.4.4).
 
-Histories throughout are `history.History`, chronological tuples (oldest
-first, current last) -- see history.py's module docstring for why this
-differs from the most-recent-first `Context` type used elsewhere, and for
-the one place the two meet (`history.selected_context`).
 """
 from __future__ import annotations
 
@@ -167,17 +163,7 @@ def _successors_by_history(exact_hon: ExactHON) -> Dict[History, List[Node]]:
 
 
 def refine_routing_partition(exact_hon: ExactHON) -> RoutingPartition:
-    """
-    Algorithm 2, first half (Section 3.4.2): coarsest routing-consistent
-    refinement P*_T of the predictive partition P_T (Theorem 3.4.2).
-
-    Starts with one block per selected context, then within each block
-    buckets histories by their destination-block signature (Eq 3.57)
-    under a fixed successor order, splitting wherever members disagree,
-    repeating until a full sweep produces no split. Blocks only ever
-    split, never merge across contexts, so every final block sits inside
-    exactly one initial context-labelled block.
-    """
+    
     successors_of = _successors_by_history(exact_hon)
 
     initial: Dict[Context, Set[History]] = {}
@@ -238,7 +224,7 @@ class HONEdge(NamedTuple):
 class RefinedHON:
     """
     Output of build_refined_hon: H*_T = (P*_T, E*_T, Q*_T, pi, lambda_T),
-    the BCT-HON (Eq 3.61).
+    the BCT-HON.
 
     states / membership / edges     the three primary output tables
     ties                            context -> state ids sharing it
@@ -257,18 +243,7 @@ class RefinedHON:
 
 
 def _display_label(context: Context, D: int, representatives: List[Tuple[int, History]]) -> Dict[int, str]:
-    """
-    Human-readable label per block sharing `context` as their predictive-
-    context label. Uses "current | rest" when the context alone
-    disambiguates, otherwise extends with more of a representative
-    history's older tokens until labels in the group are unique, falling
-    back to a neutral "label[i]" suffix if even the full history doesn't
-    disambiguate (in practice this never triggers, since distinct blocks
-    always have distinct representative histories).
-
-    Labels are cosmetic only -- `RefinedHON.membership` is the real
-    definition of a state.
-    """
+  
     base = str(context[0]) if len(context) == 1 else f"{context[0]}|{','.join(str(x) for x in context[1:])}"
     if len(representatives) == 1:
         return {representatives[0][0]: base}
@@ -302,11 +277,7 @@ def build_refined_hon(
 ) -> RefinedHON:
     """
     Algorithm 2, second half (Section 3.4.3): converts the stable blocks
-    of P*_T into the BCT-HON's state nodes and edges (Theorem 3.4.3).
-
-    Checks block homogeneity, unique routing, and row-stochasticity at
-    runtime -- these only hold if `routing_partition` was produced by
-    `refine_routing_partition` on this same `exact_hon`.
+    of P*_T into the BCT-HON's state nodes and edges.
 
     Block ids are assigned in a canonical (repr-sorted) order rather than
     RoutingPartition.blocks' incidental order, so output is reproducible.
