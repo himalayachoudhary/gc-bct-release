@@ -3,10 +3,6 @@ Exact (non-simulated) first-order marginal transition probabilities of a
 graph-constrained variable-order process, via the stationary distribution
 of the underlying history-state Markov chain.
 
-Used to check how much planting a higher-order dependency shifts the
-first-order marginals away from a matched null process, with an exact
-answer so the (small) residual isn't confounded with simulation noise.
-
 Method: build the transition matrix P over graph-valid length-D
 histories, find its stationary distribution pi (pi P = pi), then
 marginalise over histories sharing the same current physical node:
@@ -14,8 +10,8 @@ marginalise over histories sharing the same current physical node:
     P(w | v) = [sum_{h: tau(h)=v} pi(h) * theta_{C(h)}(w)]
                / [sum_{h: tau(h)=v} pi(h)]
 
-The chain is irreducible and aperiodic here, so pi is unique.
 """
+
 from typing import Dict, Tuple
 
 import numpy as np
@@ -59,8 +55,6 @@ def _build_history_transition_matrix(edges, forest, theta: Theta, D: int):
 
 
 def exact_history_stationary_distribution(edges, forest, theta: Theta, D: int) -> Dict[History, float]:
-    """pi such that pi @ P = pi, sum(pi) = 1, found via eigendecomposition
-    of P^T (the unique eigenvector for eigenvalue 1)."""
     P, histories, out_nbrs, nodes = _build_history_transition_matrix(edges, forest, theta, D)
     n = len(histories)
 
@@ -115,10 +109,6 @@ def exact_first_order_marginal(edges, forest, theta: Theta, D: int) -> Dict[Node
 
 
 def max_first_order_deviation(edges, marginal_a, marginal_b) -> float:
-    """max_{(v,w) in E} |P_a(w|v) - P_b(w|v)|. Edges present in one
-    marginal but not the other (e.g. a physical sink) are skipped,
-    matching exact_first_order_marginal's own omission of nodes with no
-    out-edges."""
     worst = 0.0
     for v, w in edges:
         if v in marginal_a and v in marginal_b and w in marginal_a[v] and w in marginal_b[v]:
