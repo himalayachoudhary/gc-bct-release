@@ -1,16 +1,12 @@
 """
 GC-CTW: the graph-constrained context-tree weighting algorithm.
+Computes
 
-Implements Section 3.2.1 (Eq 3.29-3.30). Computes
-
-    P^G_{w,lambda} = P(D_D | G, D)
+    P_{w,lambda} = P(D_D | G, D)
 
 exactly, in the log domain, via the backward weighted-probability
-recursion, Theorem 3.2.1 (exact prior predictive likelihood). An
-entirely-unobserved subtree has weighted probability 1 (the collapsed
-zero-count case, Appendix B).
+recursion.
 
-Backward pass is iterative by depth, not recursive, so large D is fine.
 """
 import math
 from collections import defaultdict
@@ -25,7 +21,6 @@ from graph_utils import alphabet, build_adjacency, children_of, compute_max_back
 
 
 class GCCTWResult:
-    """Output of run_gc_ctw. See attributes for what each holds."""
 
     def __init__(self, log_pw_lambda, log_pw, log_pe, counts, roots, out_nbrs, in_nbrs, max_reach, D, beta, eta):
         self.log_pw_lambda = log_pw_lambda  #: log P(D_D | G, D), Theorem 3.2.1
@@ -50,19 +45,9 @@ def run_gc_ctw(
     D: int,
     edges: Iterable[Tuple[Node, Node]],
     beta: BetaSpec,
-    eta: float = 0.5,
+    eta: float = 0.5,        #Jeffrey's prior
 ) -> GCCTWResult:
-    """
-    Parameters
-    ----------
-    paths : iterable of node sequences, each a chronological (oldest-first)
-        walk observed on G. Paths shorter than D+1 nodes contribute nothing.
-    D : maximum context depth.
-    edges : iterable of (u, v) pairs defining G = (V, E).
-    beta : float, or a callable context -> float, giving beta_s at every
-        non-terminal potential context (Section 3.1.4, Eq 3.20).
-    eta : symmetric Dirichlet concentration (default 0.5, Jeffreys).
-    """
+    
     out_nbrs, in_nbrs, nodes = build_adjacency(edges)
     max_reach = compute_max_backward_reach(in_nbrs, nodes, D)
     counts = build_counts_from_paths(paths, D)
